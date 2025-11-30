@@ -13,6 +13,8 @@ dependencies = [
     "requests~=2.32",
     "sqlmodel~=0.0.22",
     "httpx~=0.27",
+    "pandas~=2.2",
+    "plotly~=5.22",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +29,7 @@ dev = [
 [project.scripts]
 joinmarket-analyze = "joinmarket_analyzer.cli:main"
 joinmarket-scan = "joinmarket_analyzer.scanner:main"
+joinmarket-stats = "joinmarket_analyzer.stats:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
