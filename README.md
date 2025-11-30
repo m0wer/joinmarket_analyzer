@@ -183,6 +183,14 @@ If you use this tool in research, please cite:
 }
 ```
 
+## Future Work & Research
+
+This tool lays the groundwork for more advanced privacy research:
+
+- **Entropy Evaluation**: Measure how "ambiguous" change outputs are. If multiple valid solutions exist, the Taker is harder to pinpoint.
+- **Algorithm Design**: Evaluate and improve taker algorithms to intentionally create ambiguous change structures.
+- **Market Statistics**: Analyze historical CoinJoins to gather statistics on fee limits used by takers and earnings by makers.
+
 ## Notes
 
 - Assumes JoinMarket protocol structure (equal outputs, optional change)
