@@ -59,6 +59,7 @@ class GreedyAssignment(BaseModel):
     unassigned_inputs: set[int] = Field(default_factory=set)
     unassigned_changes: set[int] = Field(default_factory=set)
     unassigned_participants: set[int] = Field(default_factory=set)
+    taker_idx: Optional[int] = None
 
 
 class AnalysisResult(BaseModel):

@@ -190,12 +190,23 @@ def analyze_greedy_results(
     taker_original_idx = None
     total_assigned_maker_fees = 0
 
+    # If greedy already identified the taker explicitly (v2)
+    if greedy.taker_idx is not None:
+        taker_found = True
+        taker_original_idx = greedy.taker_idx
+        logger.info(f"  → Taker identified in greedy: Participant {taker_original_idx + 1}")
+
     for participant_idx, change_rel_idx in greedy.forced_changes.items():
+        if participant_idx == taker_original_idx:
+            # Skip taker in maker fee calculation
+            continue
+
         if change_rel_idx is None:
-            # No change = taker
-            taker_found = True
-            taker_original_idx = participant_idx
-            logger.info(f"  → Taker identified in greedy: Participant {participant_idx + 1}")
+            # No change = taker (Legacy check, or redundant if taker_idx set)
+            if not taker_found:
+                taker_found = True
+                taker_original_idx = participant_idx
+                logger.info(f"  → Taker identified in greedy: Participant {participant_idx + 1}")
         else:
             # Maker with change - calculate their fee
             input_indices = [

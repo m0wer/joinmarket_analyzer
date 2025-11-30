@@ -34,6 +34,26 @@ joinmarket-analyze --help
 # Output is automatically saved to solutions_<txid_prefix>.json
 ```
 
+### Scanner (Mass Analysis)
+
+The `joinmarket-scan` tool allows you to scan blocks for JoinMarket transactions, analyze them, and store results in a SQLite database.
+
+```bash
+# Scan specific block range
+joinmarket-scan 924300 924305
+
+# Scan last 100 blocks
+joinmarket-scan -100
+
+# Resume scanning (skips already scanned blocks)
+joinmarket-scan 0
+
+# Check stats in the database
+sqlite3 joinmarket_stats.db "SELECT count(*) FROM coinjointx;"
+```
+
+The scanner saves **partial results** if the exact solution cannot be found but the greedy algorithm successfully identifies the taker. This allows collecting fee statistics even for complex transactions.
+
 ### Docker
 
 ```bash

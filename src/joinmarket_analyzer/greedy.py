@@ -69,6 +69,7 @@ def greedy_preprocessing(tx_data: TransactionData, max_fee_rel: float) -> Greedy
     ] = {}  # participant_idx -> relative change_idx (None means NO change)
     used_change_rel_indices: set[int] = set()
     next_participant = 0
+    taker_idx_found: Optional[int] = None
     taker_found = False  # <<<< CRITICAL: Track if taker has been identified
 
     logger.info("\nIterative Unequivocal Matching:")
@@ -182,6 +183,7 @@ def greedy_preprocessing(tx_data: TransactionData, max_fee_rel: float) -> Greedy
                     forced_changes[next_participant] = rel_idx
                     used_change_rel_indices.add(rel_idx)
                     taker_found = True  # <<<< Mark taker as found
+                    taker_idx_found = next_participant
 
                     logger.info(
                         f"  [{iteration}] Input[{inp.index}] → Participant {next_participant + 1} "
@@ -207,6 +209,7 @@ def greedy_preprocessing(tx_data: TransactionData, max_fee_rel: float) -> Greedy
                 forced_assignments[inp.index] = next_participant
                 forced_changes[next_participant] = None
                 taker_found = True  # <<<< Mark taker as found
+                taker_idx_found = next_participant
 
                 logger.info(
                     f"  [{iteration}] Input[{inp.index}] → Participant {next_participant + 1} "
@@ -289,6 +292,7 @@ def greedy_preprocessing(tx_data: TransactionData, max_fee_rel: float) -> Greedy
         unassigned_inputs=unassigned_inputs_set,
         unassigned_changes=unassigned_changes,
         unassigned_participants=unassigned_participants,
+        taker_idx=taker_idx_found,
     )
 
     # Summary

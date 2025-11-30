@@ -58,3 +58,6 @@ results_*.json
 # Documentation
 docs/_build/
 site/
+
+# Database
+*.db
