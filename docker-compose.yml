@@ -1,0 +1,8 @@
+services:
+  joinmarket-analyzer:
+    image: ghcr.io/m0wer/joinmarket_analyzer:master
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: joinmarket-analyzer
+    command: ["--help"]
