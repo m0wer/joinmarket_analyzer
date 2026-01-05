@@ -7,6 +7,7 @@ import argparse
 import signal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import monotonic
+from typing import Optional
 
 from loguru import logger
 from sqlmodel import Session
@@ -42,17 +43,36 @@ def handle_interrupt(signum, frame):
 
 
 def analyze_candidate(
-    candidate: CoinJoinCandidate, tx_model: Transaction, session: Session
+    candidate: CoinJoinCandidate,
+    tx_model: Transaction,
+    session: Session,
+    client: Optional[MempoolClient] = None,
 ) -> None:
     """Run analysis on a CoinJoin candidate and save results."""
     logger.info(f"Analyzing {candidate.txid}...")
 
     # 1. Parse Transaction
+    tx_data = None
     try:
         # Convert finder Transaction model to dict for parser
         # by_alias=True is important if fields have aliases, but here names match
         tx_dict = tx_model.model_dump(mode="json")
         tx_data = parse_transaction(tx_dict)
+    except ValueError as e:
+        logger.warning(f"Initial parse failed for {candidate.txid}: {e}")
+        # Retry with fresh fetch if client is available
+        if client:
+            try:
+                logger.info(f"Refetching transaction {candidate.txid}...")
+                fresh_tx = client.get_transaction(candidate.txid)
+                tx_dict = fresh_tx.model_dump(mode="json")
+                tx_data = parse_transaction(tx_dict)
+                logger.success(f"Successfully parsed refetched transaction {candidate.txid}")
+            except Exception as retry_exc:
+                logger.error(f"Refetch failed for {candidate.txid}: {retry_exc}")
+
+        if not tx_data:
+            return
     except Exception as e:
         logger.error(f"Failed to parse transaction {candidate.txid}: {e}")
         return
@@ -135,6 +155,15 @@ def analyze_candidate(
         summary.estimated_taker_fee = taker_fee
         summary.taker_index_confidence = confidence
 
+        # Calculate max single maker fee (estimator for fee limit)
+        # Maker fees are negative, so we take abs()
+        max_single = 0
+        for s in solutions:
+            for p in s.participants:
+                if p.role == "maker":
+                    max_single = max(max_single, abs(p.fee))
+        summary.max_single_maker_fee = max_single
+
     # If no solution and no greedy taker found, use error message from solver if available
     if not solutions and not summary.is_partial and not error_message:
         summary.error_message = "No solutions found"
@@ -212,7 +241,7 @@ def process_block(
                     # Check if analysis exists
                     existing_analysis = session.get(AnalysisSummary, candidate.txid)
                     if not existing_analysis:
-                        analyze_candidate(candidate, tx, session)
+                        analyze_candidate(candidate, tx, session, client)
 
                 tx_index += 1
 

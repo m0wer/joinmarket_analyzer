@@ -13,18 +13,22 @@ def parse_transaction(tx_data: dict) -> TransactionData:
 
     Identifies equal outputs (CoinJoin anonymity set) and change outputs.
     """
-    inputs = [
-        UTXO(
-            address=vin["prevout"].get("scriptpubkey_address", f"unknown_{idx}"),
-            amount=vin["prevout"]["value"],
-            index=idx,
+    inputs = []
+    for idx, vin in enumerate(tx_data["vin"]):
+        if not vin.get("prevout"):
+            raise ValueError(f"Input {idx} missing prevout data (possibly pruned or API error)")
+
+        inputs.append(
+            UTXO(
+                address=vin["prevout"].get("scriptpubkey_address") or f"unknown_{idx}",
+                amount=vin["prevout"]["value"],
+                index=idx,
+            )
         )
-        for idx, vin in enumerate(tx_data["vin"])
-    ]
 
     outputs = [
         UTXO(
-            address=vout.get("scriptpubkey_address", f"unknown_{idx}"),
+            address=vout.get("scriptpubkey_address") or f"unknown_{idx}",
             amount=vout["value"],
             index=idx,
         )

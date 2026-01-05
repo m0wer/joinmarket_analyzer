@@ -94,22 +94,27 @@ def print_cli_stats(df: pd.DataFrame) -> None:
             total_fees_earned = valid_sol["total_maker_fees_est"].sum()
             print(f"Total Maker Fees Earned (Est): {total_fees_earned / 1e8:,.4f} BTC")
 
-    # Max Relative Fee
     if "max_maker_fees" in df.columns and "equal_amount" in df.columns:
         valid_rel = df[(df["max_maker_fees"].notna()) & (df["equal_amount"] > 0)].copy()
         if not valid_rel.empty:
-            valid_rel["max_rel_fee"] = valid_rel["max_maker_fees"] / valid_rel["equal_amount"]
-            max_rel_fee_observed = valid_rel["max_rel_fee"].max()
-            avg_rel_fee_limit = valid_rel["max_rel_fee"].mean()
+            # Total Taker Fee Relative (Cost of CJ)
+            if "estimated_taker_fee" in valid_rel.columns:
+                valid_rel["rel_taker_fee"] = (
+                    valid_rel["estimated_taker_fee"] / valid_rel["equal_amount"]
+                )
+                avg_rel_taker = valid_rel["rel_taker_fee"].mean()
+                print(f"Avg Relative Taker Cost: {avg_rel_taker * 100:.4f}%")
 
-            print(
-                f"Max Relative Fee Observed: {max_rel_fee_observed:.5f} "
-                f"({max_rel_fee_observed * 100:.3f}%)"
-            )
-            print(
-                f"Avg Max Relative Fee (Limit): {avg_rel_fee_limit:.5f} "
-                f"({avg_rel_fee_limit * 100:.3f}%)"
-            )
+            # Max Single Maker Fee Relative (Fee Limit Estimator)
+            if "max_single_maker_fee" in valid_rel.columns:
+                # Filter out 0s if relevant?
+                valid_single = valid_rel[valid_rel["max_single_maker_fee"] > 0].copy()
+                if not valid_single.empty:
+                    valid_single["rel_single_limit"] = (
+                        valid_single["max_single_maker_fee"] / valid_single["equal_amount"]
+                    )
+                    avg_rel_limit = valid_single["rel_single_limit"].mean()
+                    print(f"Avg Estimated Relative Fee Limit: {avg_rel_limit * 100:.5f}%")
 
     print("=" * 50 + "\n")
 
@@ -120,6 +125,21 @@ def generate_charts(df: pd.DataFrame, output_file: str = "joinmarket_stats.html"
         return
 
     logger.info(f"Generating charts to {output_file}...")
+
+    # Pre-calculate relative metrics if columns exist
+    if "equal_amount" in df.columns and "success" in df.columns:
+        # Filter successful only for fee stats
+        df_fees = df[df["success"].fillna(False).astype(bool) & (df["equal_amount"] > 0)].copy()
+
+        if "estimated_taker_fee" in df_fees.columns:
+            df_fees["rel_taker_fee"] = df_fees["estimated_taker_fee"] / df_fees["equal_amount"]
+            df_fees["rel_taker_fee_ppm"] = df_fees["rel_taker_fee"] * 1_000_000  # Parts per million
+
+        if "max_single_maker_fee" in df_fees.columns:
+            df_fees["rel_fee_limit"] = df_fees["max_single_maker_fee"] / df_fees["equal_amount"]
+            df_fees["rel_fee_limit_ppm"] = df_fees["rel_fee_limit"] * 1_000_000
+    else:
+        df_fees = pd.DataFrame()
 
     # 1. Frequency over time (Weekly)
     df_weekly = df.set_index("datetime").resample("W").size().reset_index(name="count")
@@ -135,35 +155,61 @@ def generate_charts(df: pd.DataFrame, output_file: str = "joinmarket_stats.html"
     # 3. Participants Distribution
     fig_part = px.histogram(df, x="num_participants", title="Participants Distribution", nbins=20)
 
-    # 4. Relative Fee Limit Heatmap/Scatter
-    # We want to see what relative fee limits are used over time or vs amount
     figs = [fig_freq, fig_vol, fig_part]
 
-    if "max_maker_fees" in df.columns:
-        df_fees = df[
-            (df["success"].fillna(False).astype(bool)) & (df["max_maker_fees"].notna())
-        ].copy()
-        if not df_fees.empty:
-            df_fees["rel_fee_limit"] = df_fees["max_maker_fees"] / df_fees["equal_amount"]
+    # 4. Fee Statistics
+    if not df_fees.empty:
+        # 4a. Relative Taker Fee vs Amount (Heatmap)
+        if "rel_taker_fee" in df_fees.columns:
+            # Filter for positive values for log scale
+            plot_df = df_fees[df_fees["rel_taker_fee"] > 0]
+            if not plot_df.empty:
+                fig_taker_heat = px.density_heatmap(
+                    plot_df,
+                    x="equal_amount",
+                    y="rel_taker_fee",
+                    log_x=True,
+                    log_y=True,
+                    nbinsx=30,
+                    nbinsy=30,
+                    title="Heatmap: Relative Taker Fee vs CoinJoin Amount",
+                    labels={
+                        "equal_amount": "CoinJoin Amount (sats)",
+                        "rel_taker_fee": "Relative Taker Fee (Total / Amount)",
+                    },
+                )
+                figs.append(fig_taker_heat)
 
-            # Scatter: Amount vs Relative Fee Limit
-            fig_fee_scatter = px.scatter(
+        # 4b. Relative Fee Limit vs Amount (Heatmap)
+        if "rel_fee_limit" in df_fees.columns:
+            plot_df = df_fees[df_fees["rel_fee_limit"] > 0]
+            if not plot_df.empty:
+                fig_limit_heat = px.density_heatmap(
+                    plot_df,
+                    x="equal_amount",
+                    y="rel_fee_limit",
+                    log_x=True,
+                    log_y=True,
+                    nbinsx=30,
+                    nbinsy=30,
+                    title="Heatmap: Estimated Fee Limit vs CoinJoin Amount",
+                    labels={
+                        "equal_amount": "CoinJoin Amount (sats)",
+                        "rel_fee_limit": "Relative Max Single Maker Fee",
+                    },
+                )
+                figs.append(fig_limit_heat)
+
+            # Histogram of Fee Limits
+            fig_limit_hist = px.histogram(
                 df_fees,
-                x="equal_amount",
-                y="rel_fee_limit",
-                color="num_participants",
-                log_x=True,
+                x="rel_fee_limit",
+                title="Distribution of Estimated Relative Fee Limits",
+                nbins=50,
                 log_y=True,
-                hover_data=["txid", "datetime"],
-                title="Relative Fee Limit vs Equal Amount (Log Scale)",
+                labels={"rel_fee_limit": "Relative Max Single Maker Fee"},
             )
-            figs.append(fig_fee_scatter)
-
-            # Histogram of relative fees
-            fig_fee_hist = px.histogram(
-                df_fees, x="rel_fee_limit", title="Relative Fee Limit Distribution", nbins=50
-            )
-            figs.append(fig_fee_hist)
+            figs.append(fig_limit_hist)
 
     # Combine into single HTML
     with open(output_file, "w") as f:

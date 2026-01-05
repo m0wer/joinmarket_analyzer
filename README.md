@@ -50,6 +50,9 @@ joinmarket-scan 0
 
 # Check stats in the database
 sqlite3 joinmarket_stats.db "SELECT count(*) FROM coinjointx;"
+
+# Run in parallel (e.g., 4 jobs)
+joinmarket-scan 924300 924305 --jobs 4
 ```
 
 The scanner saves **partial results** if the exact solution cannot be found but the greedy algorithm successfully identifies the taker. This allows collecting fee statistics even for complex transactions.

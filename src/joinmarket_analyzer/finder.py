@@ -166,6 +166,11 @@ class MempoolClient:
         txs = response.json()
         return [Transaction.model_validate(tx) for tx in txs]
 
+    def get_transaction(self, txid: str) -> Transaction:
+        """Get single transaction details."""
+        response = self._get(f"/api/tx/{txid}")
+        return Transaction.model_validate(response.json())
+
 
 class JoinMarketDetector:
     """Detect JoinMarket CoinJoin patterns."""

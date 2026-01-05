@@ -38,9 +38,12 @@ class AnalysisSummary(SQLModel, table=True):  # type: ignore[call-arg]
 
     # Solution stats
     solution_count: int = 0
-    min_maker_fees: Optional[int] = None
-    max_maker_fees: Optional[int] = None
-    avg_maker_fees: Optional[float] = None
+    min_maker_fees: Optional[int] = None  # Total maker fees (min across solutions)
+    max_maker_fees: Optional[int] = None  # Total maker fees (max across solutions)
+    avg_maker_fees: Optional[float] = None  # Total maker fees (avg across solutions)
+
+    # New stat: Max fee paid to any single maker (estimator for fee limit)
+    max_single_maker_fee: Optional[int] = None
 
     # Taker stats (from best/most likely solution)
     estimated_taker_fee: Optional[int] = None

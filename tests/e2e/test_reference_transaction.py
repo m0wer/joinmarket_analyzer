@@ -242,9 +242,9 @@ class TestReferenceTransaction:
             f"{tx_data.num_participants}"
         )
 
-        assert (
-            len(result.forced_assignments) > 0
-        ), "Should find at least one deterministic assignment"
+        assert len(result.forced_assignments) > 0, (
+            "Should find at least one deterministic assignment"
+        )
 
     def test_known_input_change_pairs(self, reference_tx_data):
         """Test specific known input-change pairs from reference transaction."""
@@ -290,15 +290,15 @@ class TestReferenceTransaction:
                 fee = input_amount - equal_amount - change_amount
 
                 # Fee should be reasonable (maker fees are negative/zero)
-                assert (
-                    -max_fee <= fee <= max_fee
-                ), f"Fee {fee} outside reasonable range for participant {participant_idx}"
+                assert -max_fee <= fee <= max_fee, (
+                    f"Fee {fee} outside reasonable range for participant {participant_idx}"
+                )
             else:
                 # No change case
                 fee = input_amount - equal_amount
-                assert (
-                    0 <= fee <= max_fee
-                ), f"No-change fee {fee} outside range for participant {participant_idx}"
+                assert 0 <= fee <= max_fee, (
+                    f"No-change fee {fee} outside range for participant {participant_idx}"
+                )
 
 
 @pytest.mark.e2e
